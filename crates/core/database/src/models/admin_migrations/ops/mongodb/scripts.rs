@@ -26,7 +26,7 @@ struct MigrationInfo {
     revision: i32,
 }
 
-pub const LATEST_REVISION: i32 = 52; // MUST BE +1 to last migration
+pub const LATEST_REVISION: i32 = 54; // MUST BE +1 to last migration
 
 pub async fn migrate_database(db: &MongoDb) {
     let migrations = db.col::<Document>("migrations");
@@ -1299,7 +1299,9 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
             }
 
             for session in sessions {
-                let timestamp = iso8601_timestamp::Timestamp::from(Ulid::from_string(&session._id).unwrap().datetime());
+                let timestamp = iso8601_timestamp::Timestamp::from(
+                    Ulid::from_string(&session._id).unwrap().datetime(),
+                );
 
                 db.db()
                     .collection::<Document>("sessions")
@@ -1478,14 +1480,15 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
     if revision <= 50 {
         info!("Running migration [revision 50 / 13-04-2026]: Rename invites collection to account_invites");
 
-        let result = db.db()
+        let result = db
+            .db()
             .client()
             .database("admin")
             .run_command(doc! {
-            "renameCollection": "revolt.invites",
-            "to": "revolt.account_invites",
-            "dropTarget": true
-        })
+                "renameCollection": "revolt.invites",
+                "to": "revolt.account_invites",
+                "dropTarget": true
+            })
             .await;
 
         if let Err(e) = result {
@@ -1496,7 +1499,7 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
         }
     }
 
-    if revision >= 51 {
+    if revision <= 51 {
         info!("Running migration [revision 51 / 28-11-2025]: Add audit logs collection");
 
         db.db()
@@ -1528,6 +1531,51 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
             .await
             .expect("Failed to create audit_logs index");
     };
+
+    if revision <= 52 {
+        let config = revolt_config::config().await;
+        if config.production {
+            info!("Running migration [revision 52 / 20-08-2026]: Discover endpoints");
+            db.db()
+                .create_collection("discover_requests")
+                .await
+                .expect("Failed to create discover_requests collection");
+
+            db.db()
+                .run_command(doc! {
+                    "createIndexes": "discover_requests",
+                    "indexes": [
+                        {
+                            "key": {
+                                "request_type": 1,
+                                "request_id": 1
+                            },
+                            "name": "request_type_id"
+                        }
+                    ]
+                })
+                .await
+                .expect("Failed to create index");
+        } else {
+            info!("Skipping migration [revision 52 / 20-08-2026]: Discover endpoints");
+        }
+    }
+
+    if revision <= 53 {
+        info!(
+            "Running migration [revision 53 / 30-08-2026]: [FIX] clean bad last_channel_id values"
+        );
+        db.db()
+            .collection::<Document>("channels")
+            .update_many(
+                doc! {"last_message_id": {"$regex": "\""}},
+                vec![
+                    doc! {"$set": {"last_message_id": {"$trim": {"input": "$last_message_id", "chars": "\""}}}},
+                ],
+            )
+            .await
+            .expect("Failed to clean up channels");
+    }
 
     // Reminder to update LATEST_REVISION when adding new migrations.
     LATEST_REVISION.max(revision)

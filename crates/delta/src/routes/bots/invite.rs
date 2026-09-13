@@ -119,10 +119,11 @@ mod test {
     use revolt_database::{events::client::EventV1, Bot, Channel, Server};
     use revolt_models::v0::{self, DataCreateServer};
     use rocket::http::{ContentType, Header, Status};
+    use crate::util::test::PubSubTestHelper;
 
     #[rocket::async_test]
     async fn invite_bot_to_group() {
-        let mut harness = TestHarness::new().await;
+        let harness = TestHarness::new().await;
         let (_, session, user) = harness.new_user().await;
 
         let (bot, _) = Bot::create(&harness.db, TestHarness::rand_string(), &user, None)
@@ -139,6 +140,7 @@ mod test {
         )
         .await
         .unwrap();
+        let mut pubsub = PubSubTestHelper::new(group.id()).await;
 
         let response = harness
             .client
@@ -157,8 +159,8 @@ mod test {
         assert_eq!(response.status(), Status::NoContent);
         drop(response);
 
-        let event = harness
-            .wait_for_event(group.id(), |event| match event {
+        let event = pubsub
+            .wait_for_event(|event| match event {
                 EventV1::ChannelGroupJoin { id, .. } => id == group.id(),
                 _ => false,
             })
@@ -174,7 +176,7 @@ mod test {
 
     #[rocket::async_test]
     async fn invite_bot_to_server() {
-        let mut harness = TestHarness::new().await;
+        let harness = TestHarness::new().await;
         let (_, session, user) = harness.new_user().await;
 
         let (bot, _) = Bot::create(&harness.db, TestHarness::rand_string(), &user, None)
@@ -192,6 +194,7 @@ mod test {
         )
         .await
         .unwrap();
+        let mut pubsub = PubSubTestHelper::new(&server.id).await;
 
         let response = harness
             .client
@@ -210,8 +213,8 @@ mod test {
         assert_eq!(response.status(), Status::NoContent);
         drop(response);
 
-        let event = harness
-            .wait_for_event(&server.id, |event| match event {
+        let event = pubsub
+            .wait_for_event(|event| match event {
                 EventV1::ServerMemberJoin { id, .. } => id == &server.id,
                 _ => false,
             })
