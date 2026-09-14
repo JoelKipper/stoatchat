@@ -170,11 +170,6 @@ pub async fn edit(
         let new_roles = roles.iter().collect::<HashSet<&String>>();
         let added_roles: Vec<&&String> = new_roles.difference(&current_roles).collect();
 
-        println!(
-            "{:?}   {:?}     {:?}",
-            current_roles, new_roles, added_roles
-        );
-
         for role_id in added_roles {
             if let Some(role) = server.roles.get(*role_id) {
                 if role.rank <= our_ranking {
