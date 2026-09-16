@@ -1,0 +1,20 @@
+# Custom build: only compiles the gifbox crate (and its transitive deps),
+# not the whole monorepo - upstream's Dockerfile assumes a prebuilt
+# ghcr.io/stoatchat/base image with every service already compiled, which
+# doesn't exist for this fork.
+FROM rust:1.92.0-slim-trixie AS builder
+WORKDIR /home/rust/src
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make pkg-config libssl-dev libdav1d-dev
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN cargo build -j "${CARGO_BUILD_JOBS:-4}" --locked --release -p revolt-gifbox
+
+FROM gcr.io/distroless/cc-debian13:nonroot
+COPY --from=builder /home/rust/src/target/release/revolt-gifbox ./
+
+EXPOSE 14706
+USER nonroot
+CMD ["./revolt-gifbox"]

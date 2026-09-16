@@ -1,4 +1,9 @@
 //! Internal Tenor API wrapper
+//!
+//! Points at Klipy's Tenor-compatible endpoint (https://klipy.com/migrate)
+//! instead of Tenor/gifbox.me directly - same request/response shape
+//! (verified against every route this module uses), just a different
+//! backend and API key.
 
 use std::{sync::Arc, time::Duration};
 
@@ -10,7 +15,7 @@ use tokio::sync::RwLock;
 
 pub mod types;
 
-const TENOR_API_BASE_URL: &str = "https://compat.gifbox.me/v2";
+const TENOR_API_BASE_URL: &str = "https://api.klipy.com/v2";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TenorError {
@@ -80,7 +85,18 @@ impl Tenor {
             TenorError::HttpError
         })?;
 
-        Ok(Arc::new(serde_json::from_str(&text).unwrap()))
+        // Was `.unwrap()` - a single malformed/error response from the GIF
+        // provider (rate limit, transient hiccup, etc.) would panic this
+        // task. Since this always runs inside CoalescionService::execute,
+        // a panic here skips its cleanup (the watcher entry for this exact
+        // query/locale/etc. is never removed), permanently breaking every
+        // future request for that same combination with RecvError until
+        // the whole process restarts. Propagating the error instead lets
+        // the caller just fail this one request and clean up properly.
+        serde_json::from_str(&text).map(Arc::new).map_err(|e| {
+            revolt_config::capture_error(&e);
+            TenorError::HttpError
+        })
     }
 
     pub async fn search(
