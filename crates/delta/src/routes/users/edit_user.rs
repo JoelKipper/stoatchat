@@ -103,6 +103,10 @@ pub async fn edit(
             new_status.presence = Some(presence.into());
         }
 
+        if let Some(activity) = status.activity {
+            new_status.activity = Some(activity.into());
+        }
+
         partial.status = Some(new_status);
     }
 

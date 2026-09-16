@@ -1,0 +1,24 @@
+# Custom build: only compiles the delta crate (and its transitive deps),
+# not the whole monorepo - upstream's Dockerfile assumes a prebuilt
+# ghcr.io/stoatchat/base image with every service already compiled, which
+# doesn't exist for this fork. Mirrors crates/services/gifbox/Dockerfile.custom.
+FROM rust:1.92.0-slim-trixie AS builder
+WORKDIR /home/rust/src
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make pkg-config libssl-dev libdav1d-dev
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN cargo build -j "${CARGO_BUILD_JOBS:-4}" --locked --release -p revolt-delta
+
+FROM debian:13 AS debian
+
+FROM gcr.io/distroless/cc-debian13:nonroot
+COPY --from=builder /home/rust/src/target/release/revolt-delta ./
+COPY --from=debian /usr/bin/uname /usr/bin/uname
+
+EXPOSE 14702
+ENV ROCKET_ADDRESS=0.0.0.0
+USER nonroot
+CMD ["./revolt-delta"]

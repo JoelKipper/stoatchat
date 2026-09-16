@@ -1308,6 +1308,7 @@ impl From<FieldsUser> for crate::FieldsUser {
             FieldsUser::ProfileBackground => crate::FieldsUser::ProfileBackground,
             FieldsUser::ProfileContent => crate::FieldsUser::ProfileContent,
             FieldsUser::StatusPresence => crate::FieldsUser::StatusPresence,
+            FieldsUser::StatusActivity => crate::FieldsUser::StatusActivity,
             FieldsUser::StatusText => crate::FieldsUser::StatusText,
             FieldsUser::DisplayName => crate::FieldsUser::DisplayName,
             FieldsUser::Pronouns => crate::FieldsUser::Pronouns,
@@ -1324,6 +1325,7 @@ impl From<crate::FieldsUser> for FieldsUser {
             crate::FieldsUser::ProfileBackground => FieldsUser::ProfileBackground,
             crate::FieldsUser::ProfileContent => FieldsUser::ProfileContent,
             crate::FieldsUser::StatusPresence => FieldsUser::StatusPresence,
+            crate::FieldsUser::StatusActivity => FieldsUser::StatusActivity,
             crate::FieldsUser::StatusText => FieldsUser::StatusText,
             crate::FieldsUser::DisplayName => FieldsUser::DisplayName,
             crate::FieldsUser::Pronouns => FieldsUser::Pronouns,
@@ -1381,8 +1383,68 @@ impl From<Presence> for crate::Presence {
     }
 }
 
+impl From<crate::Activity> for Activity {
+    fn from(value: crate::Activity) -> Self {
+        match value {
+            crate::Activity::Spotify {
+                track_id,
+                track_name,
+                artist_name,
+                album_name,
+                album_art_url,
+                track_url,
+                duration_ms,
+                progress_ms,
+                timestamp,
+            } => Activity::Spotify {
+                track_id,
+                track_name,
+                artist_name,
+                album_name,
+                album_art_url,
+                track_url,
+                duration_ms,
+                progress_ms,
+                timestamp,
+            },
+        }
+    }
+}
+
+impl From<Activity> for crate::Activity {
+    fn from(value: Activity) -> crate::Activity {
+        match value {
+            Activity::Spotify {
+                track_id,
+                track_name,
+                artist_name,
+                album_name,
+                album_art_url,
+                track_url,
+                duration_ms,
+                progress_ms,
+                timestamp,
+            } => crate::Activity::Spotify {
+                track_id,
+                track_name,
+                artist_name,
+                album_name,
+                album_art_url,
+                track_url,
+                duration_ms,
+                progress_ms,
+                timestamp,
+            },
+        }
+    }
+}
+
 impl crate::UserStatus {
     fn into(self, discard_invisible: bool) -> Option<UserStatus> {
+        // Going invisible hides what you're listening to too, same as presence.
+        let is_invisible =
+            discard_invisible && self.presence == Some(crate::Presence::Invisible);
+
         let status = UserStatus {
             text: self.text,
             presence: self.presence.and_then(|presence| {
@@ -1392,9 +1454,14 @@ impl crate::UserStatus {
                     Some(presence.into())
                 }
             }),
+            activity: if is_invisible {
+                None
+            } else {
+                self.activity.map(Into::into)
+            },
         };
 
-        if status.text.is_none() && status.presence.is_none() {
+        if status.text.is_none() && status.presence.is_none() && status.activity.is_none() {
             None
         } else {
             Some(status)
@@ -1407,6 +1474,7 @@ impl From<UserStatus> for crate::UserStatus {
         crate::UserStatus {
             text: value.text,
             presence: value.presence.map(|presence| presence.into()),
+            activity: value.activity.map(|activity| activity.into()),
         }
     }
 }

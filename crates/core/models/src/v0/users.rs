@@ -89,6 +89,7 @@ auto_derived!(
         Avatar,
         StatusText,
         StatusPresence,
+        StatusActivity,
         ProfileContent,
         ProfileBackground,
         DisplayName,
@@ -152,6 +153,36 @@ auto_derived!(
         /// Current presence option
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         pub presence: Option<Presence>,
+        /// Currently detected activity (e.g. Spotify now-playing)
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        pub activity: Option<Activity>,
+    }
+
+    /// A detected activity to show alongside a user's status
+    #[cfg_attr(feature = "serde", serde(tag = "type"))]
+    pub enum Activity {
+        /// Currently listening to a track on Spotify
+        Spotify {
+            /// Spotify track id
+            track_id: String,
+            /// Track title
+            track_name: String,
+            /// Artist name
+            artist_name: String,
+            /// Album name
+            album_name: String,
+            /// Album art image url
+            album_art_url: String,
+            /// Public link to the track on Spotify
+            track_url: String,
+            /// Total track duration in milliseconds
+            duration_ms: u64,
+            /// Playback progress in milliseconds as of `timestamp`
+            progress_ms: u64,
+            /// Unix ms timestamp this snapshot was taken at, so clients can
+            /// interpolate the progress bar locally between polls
+            timestamp: u64,
+        },
     }
 
     /// User's profile
