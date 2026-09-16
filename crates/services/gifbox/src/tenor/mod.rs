@@ -128,7 +128,7 @@ impl Tenor {
                         Some(("locale", locale)),
                         Some(("contentfilter", "high")),
                         Some(("limit", &limit.to_string())),
-                        position.is_empty().then_some(("pos", position)),
+                        (!position.is_empty()).then_some(("pos", position)),
                         is_category.then_some(("component", "categories")),
                     ],
                 )
@@ -209,7 +209,7 @@ impl Tenor {
                         Some(("locale", locale)),
                         Some(("contentfilter", "high")),
                         Some(("limit", &limit.to_string())),
-                        position.is_empty().then_some(("pos", position)),
+                        (!position.is_empty()).then_some(("pos", position)),
                     ],
                 )
                 .await
