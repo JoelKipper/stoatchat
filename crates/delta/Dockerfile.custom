@@ -5,12 +5,17 @@
 FROM rust:1.92.0-slim-trixie AS builder
 WORKDIR /home/rust/src
 
+# revolt-delta is the biggest crate in the workspace; a release+LTO build
+# with the default 4 parallel codegen jobs OOMs this host (7.5GB RAM). Cap
+# it low here rather than relying on the caller to pass --build-arg.
+ARG CARGO_BUILD_JOBS=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make pkg-config libssl-dev libdav1d-dev
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-RUN cargo build -j "${CARGO_BUILD_JOBS:-4}" --locked --release -p revolt-delta
+RUN cargo build -j "${CARGO_BUILD_JOBS}" --locked --release -p revolt-delta
 
 FROM debian:13 AS debian
 
