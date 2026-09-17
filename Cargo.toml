@@ -15,7 +15,11 @@ redis23 = { package = "redis", version = "0.23.3", git = "https://github.com/rev
 #rocket_authifier = { package = "rocket_authifier", version = "1.0.10", path = "../authifier/crates/rocket_authifier" }
 
 [profile.release]
-lto = true
+# Fat LTO ("true") needs the whole-program IR resident at once for the
+# final link and pushed the self-hosted deploy box (7.5GB RAM) into heavy
+# swapping even with a single build job. Thin LTO gives nearly all of the
+# same optimization with a fraction of the peak memory.
+lto = "thin"
 
 [workspace.dependencies]
 # Async
