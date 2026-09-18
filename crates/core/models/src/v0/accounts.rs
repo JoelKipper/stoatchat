@@ -67,4 +67,16 @@ auto_derived!(
         /// Captcha verification code
         pub captcha: Option<String>,
     }
+
+    /// # Check Account Data
+    pub struct DataAccountExists {
+        /// Email address to check
+        pub email: String,
+    }
+
+    /// # Account Existence
+    pub struct AccountExists {
+        /// Whether an account exists for the given email
+        pub exists: bool,
+    }
 );
